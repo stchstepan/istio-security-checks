@@ -1,0 +1,72 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/authz/overly_permissive.go
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: authorizationpolicy-disallow-wildcard-methods-to
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: AuthorizationPolicy
+    policies.kyverno.io/description: >-
+      This policy audits AuthorizationPolicy resources where the 'operation.methods'
+      field in 'to' rules includes a wildcard ('*') but no other constraints. 
+      This could unintentionally allow access to all methods on all services.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # https://istio.io/latest/docs/reference/config/security/authorization-policy/
+    - name: wildcard-methods-without-constraints
+      match:
+        any:
+        - resources:
+            kinds:
+            - AuthorizationPolicy
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+        - key: "{{ request.object.spec.action || 'ALLOW' }}"
+          operator: Equals
+          value: "ALLOW"
+        any:
+        - key: "{{ request.object.spec.selector || '' }}"
+          operator: Equals
+          value: ""
+        - key: "{{ request.object.spec.selector.matchLabels || '' }}"
+          operator: Equals
+          value: ""
+      validate:
+        message: "'*' in spec.rules[].to[].operation.methods is not allowed without additional constraints in ALLOW policies"
+        foreach:
+          - list: "request.object.spec.rules[].to[]"
+            preconditions:
+              all:
+              - key: "{{ element.operation.methods || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ contains(element.operation.methods, '*') }}"
+                operator: Equals
+                value: true
+            deny:
+              conditions:
+                any:
+                - key: "{{ element.operation.hosts || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.operation.ports || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.operation.notMethods || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.operation.notPaths || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.operation.notHosts || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.operation.notPorts || '' }}"
+                  operator: Equals
+                  value: ""

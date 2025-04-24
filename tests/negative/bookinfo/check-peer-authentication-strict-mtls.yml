@@ -1,0 +1,33 @@
+# 1
+# Нет STRICT в istio-system
+# Нет STRICT в bookinfo
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: test1
+  namespace: istio-system
+spec:
+  mtls:
+    mode: DISABLE
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: test2
+  namespace: bookinfo
+spec:
+  mtls:
+    mode: DISABLE 
+
+# 2
+# Нет PeerAuthentication в istio-system
+# Нет STRICT в bookinfo
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: test2
+  namespace: bookinfo
+spec:
+  mtls:
+    mode: DISABLE 

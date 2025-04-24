@@ -1,0 +1,14 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-bad-user
+  namespace: bookinfo
+spec:
+  selector:
+    matchLabels:
+      app: productpage
+  action: DENY
+  rules:
+  - from:
+    - source:
+        notPrincipals: ["cluster.local/ns/bookinfo/sa/bookinfo-reviews"]

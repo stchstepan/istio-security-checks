@@ -1,0 +1,52 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/peerauth/mutual_tls.go
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: peerauthentication-namespace-strict-or-global-strict-required
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: PeerAuthentication
+    policies.kyverno.io/description: >-
+      This policy ensures that all PeerAuthentication resources within 
+      the cluster enforce STRICT mode for mutual TLS (mTLS), unless a global 
+      PeerAuthentication policy with STRICT mode is already defined in the 
+      istio-system namespace.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # https://istio.io/latest/docs/reference/config/security/peer_authentication/
+  # Проверка: PeerAuthentication в режиме STRICT 
+  # Если cluster wide PeerAuthentication (PeerAuthentication в ns istio-system)
+  # не установлено в STRICT, то требуется, чтобы в каждом PeerAuthentication
+  # был STRICT, в противном случае политика выдаст fail.
+  # Если политика нашла STRICT в istio-system/не нашла STRICT в istio-system,
+  # но нашла его в проверяемых PeerAuthentication, то в отчете будет не pass,
+  # а skip
+    - name: deny-non-strict-if-no-global-strict
+      match:
+        any:
+          - resources:
+              kinds:
+                - PeerAuthentication
+      context:
+        - name: globalStrictModes
+          apiCall:
+            urlPath: "/apis/security.istio.io/v1beta1/peerauthentications"
+            jmesPath: "items[?metadata.namespace=='istio-system' && spec.mtls.mode=='STRICT'].spec.mtls.mode"
+      preconditions:
+        all:
+          - key: "{{ request.operation || 'BACKGROUND' }}"
+            operator: AnyIn
+            value: ["CREATE", "UPDATE"]
+          - key: "{{ request.object.spec.mtls.mode }}"
+            operator: NotEquals
+            value: STRICT
+          - key: "{{ globalStrictModes[] || '' }}"
+            operator: NotIn
+            value:
+              - STRICT
+      validate:
+        message: "Only STRICT mTLS is allowed unless a global STRICT policy exists in istio-system."
+        deny: {}

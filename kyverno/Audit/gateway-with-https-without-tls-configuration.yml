@@ -1,0 +1,98 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/gateway/insecure_tls.go#L48-L54
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: gateway-with-https-without-tls-configuration
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: Gateway
+    policies.kyverno.io/description: >-
+      This policy disallows the creation or update of Gateway resources that define an 
+      HTTPS server without an accompanying TLS configuration. 
+      It ensures that all HTTPS servers are properly secured with TLS settings.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # Проверка: HTTPS-порт без конфигурации TLS
+  # k8s gateway api
+  # https://gateway-api.sigs.k8s.io/reference/spec/#gatewaytlsconfig
+    - name: disallow-k8s-gateway-https-without-tls-configuration
+      match:
+        any:
+        - resources:
+            kinds:
+              - Gateway
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+      validate:
+        message: "HTTPS server must include TLS configuration"
+        foreach:
+        - list: "request.object.spec.listeners[]"
+          preconditions:
+            all:
+            - key: "{{ element.protocol }}"
+              operator: Equals
+              value: "HTTPS"
+          anyPattern:
+          - tls:
+              mode: "?*"
+          - tls:
+              certificateRefs: "?*"
+          - tls:
+              frontendValidation: "?*"
+          - tls:
+              options: "?*"
+  # Istio
+  # https://istio.io/latest/docs/reference/config/networking/gateway/
+    - name: disallow-istio-gateway-https-without-tls-configuration
+      match:
+        any:
+        - resources:
+            kinds:
+              - Gateway
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+      validate:
+        message: "HTTPS server must include TLS configuration"
+        foreach:
+        - list: "request.object.spec.servers[]"
+          preconditions:
+            all:
+            - key: "{{ element.port.protocol }}"
+              operator: Equals
+              value: "HTTPS"
+          anyPattern:
+          - tls:
+              httpsRedirect: "?*"
+          - tls:
+              mode: "?*"
+          - tls:
+              serverCertificate: "?*"
+          - tls:
+              privateKey: "?*"
+          - tls:
+              caCertificates: "?*"
+          - tls:
+              caCrl: "?*"
+          - tls:
+              credentialName: "?*"
+          - tls:
+              subjectAltNames: "?*"
+          - tls:
+              verifyCertificateSpki: "?*"
+          - tls:
+              verifyCertificateHash: "?*"
+          - tls:
+              minProtocolVersion: "?*"
+          - tls:
+              maxProtocolVersion: "?*"
+          - tls:
+              cipherSuites: "?*"

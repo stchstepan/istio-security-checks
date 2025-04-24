@@ -1,0 +1,15 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-details-not-namespaces
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  rules:
+  - to:
+    - operation:
+        methods: ["*"]
+        ports: ["9080"]  # Реальный порт из Service
+    when:
+    - key: request.auth.claims[iss]
+      values: ["https://accounts.google.com"]

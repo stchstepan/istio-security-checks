@@ -1,0 +1,64 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/authz/deny_with_positive.go
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: authorizationpolicy-deny-deny-with-positive-matchers
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: AuthorizationPolicy
+    policies.kyverno.io/description: >-
+      AuthorizationPolicies with action DENY should not use positive matchers like `principals`, `paths`, etc.,
+      as this could lead to unintended access control logic. Only negative matchers should be used with DENY.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # https://istio.io/latest/docs/reference/config/security/authorization-policy/
+    - name: no-positive-matchers-in-deny
+      match:
+        any:
+        - resources:
+            kinds:
+              - security.istio.io/v1beta1/AuthorizationPolicy
+      preconditions:
+        all:
+        - key: "{{ request.object.spec.action || 'ALLOW' }}"
+          operator: Equals
+          value: "DENY"
+      validate:
+        message: "AuthorizationPolicy with action DENY must not use positive matchers like principals, paths, etc."
+        foreach:
+        - list: "request.object.spec.rules[]"
+          deny:
+            conditions:
+              any:
+              # FROM -> source
+              - key: "{{ element.from[].source.principals || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.from[].source.namespaces || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.from[].source.ipBlocks || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.from[].source.remoteIpBlocks || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.from[].source.requestPrincipals || '' }}"
+                operator: NotEquals
+                value: ""
+              # TO -> operation
+              - key: "{{ element.to[].operation.hosts || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.to[].operation.methods || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.to[].operation.paths || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.to[].operation.ports || '' }}"
+                operator: NotEquals
+                value: ""

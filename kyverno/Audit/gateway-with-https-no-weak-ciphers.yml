@@ -1,0 +1,65 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/gateway/insecure_tls.go#L82-L92
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: gateway-with-https-no-weak-ciphers
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: Gateway
+    policies.kyverno.io/description: >-
+      This policy ensures that Istio Gateway resources do not specify weak or 
+      deprecated cipher suites in their TLS configuration. By validating the cipherSuites 
+      field, it prevents the use of insecure ciphers, such as those based on CBC mode or 
+      lacking forward secrecy, thereby enhancing the security posture of the service mesh.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # Проверка: Запрет на использование слабых cipher suites
+  # k8s gateway api - не нашел универсального обозначения, как это сделать
+  # Istio
+    - name: disallow-weak-cipher-suites-in-istio-gateways
+      match:
+        any:
+        - resources:
+            kinds:
+              - Gateway
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+      validate:
+        message: "Weak cipher suite is not allowed"
+        foreach:
+        - list: "request.object.spec.servers[]"
+          preconditions:
+            all:
+            - key: "{{ element.port.protocol }}"
+              operator: Equals
+              value: "HTTPS"
+          deny:
+            conditions:
+              all:
+              - key: "{{ element.tls.cipherSuites[] }}"
+                operator: AnyIn
+                value:
+                  # not secure:
+                  - TLS_RSA_WITH_AES_128_CBC_SHA
+                  - TLS_RSA_WITH_AES_256_CBC_SHA
+                  - TLS_RSA_WITH_3DES_EDE_CBC_SHA
+                  - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA
+                  - TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA
+                  - TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA
+                  - TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA
+                  - TLS_RSA_WITH_AES_128_CBC_SHA256
+                  - TLS_RSA_WITH_AES_256_CBC_SHA256
+
+                  # secure: 
+                  # - TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256
+                  # - TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256
+                  # - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256"  
+                  # - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256     
+                  # - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 
+                  # - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384

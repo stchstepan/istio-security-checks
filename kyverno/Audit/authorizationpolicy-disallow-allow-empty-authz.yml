@@ -1,0 +1,57 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/authz/overly_permissive.go
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: authorizationpolicy-disallow-allow-empty-authz
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: AuthorizationPolicy
+    policies.kyverno.io/description: >-
+      This policy audits overly permissive Istio AuthorizationPolicy 
+      resources by disallowing empty principals in policies with the ALLOW action. 
+      Such configurations can inadvertently grant access to all users or services, 
+      potentially leading to serious security risks.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # https://istio.io/latest/docs/reference/config/security/authorization-policy/
+    - name: deny-allow-with-empty-rules
+      match:
+        any:
+        - resources:
+            kinds:
+            - AuthorizationPolicy
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+        - key: "{{ request.object.spec.action || 'ALLOW' }}"
+          operator: Equals
+          value: "ALLOW"
+        any:
+        - key: "{{ request.object.spec.selector || '' }}"
+          operator: Equals
+          value: ""
+        - key: "{{ request.object.spec.selector.matchLabels || '' }}"
+          operator: Equals
+          value: ""
+      validate:
+        message: "Wildcard AuthorizationPolicy not allowed. Use rules 'from', 'to' and 'when'."
+        deny:
+          conditions:
+            any:
+            - key: "{{ request.object.spec.rules[] || '' }}"
+              operator: Equals
+              value: ""
+            - key: "{{ request.object.spec.rules[].from || '' }}"
+              operator: Equals
+              value: ""
+            - key: "{{ request.object.spec.rules[].to || '' }}"
+              operator: Equals
+              value: ""
+            - key: "{{ request.object.spec.rules[].when || '' }}"
+              operator: Equals
+              value: ""

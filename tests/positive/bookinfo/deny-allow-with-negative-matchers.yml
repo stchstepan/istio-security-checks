@@ -1,0 +1,98 @@
+---
+# Для productpage (явное разрешение)
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: productpage-allow
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: productpage
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/bookinfo/sa/bookinfo-productpage"]  # Используем реальный SA
+    to:
+    - operation:
+        methods: ["GET"]  # Только GET как в HTTPRoute
+        paths: ["/productpage", "/static/*", "/login", "/logout", "/api/v1/products*"]  # Реальные пути
+
+---
+# Для details service
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: details-allow
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: details
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/bookinfo/sa/bookinfo-details"]  # Реальный SA
+    to:
+    - operation:
+        ports: ["9080"]  # Реальный порт из Service
+
+---
+# Для ratings service
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: ratings-allow
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: ratings
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/bookinfo/sa/bookinfo-ratings"]  # Реальный SA
+    to:
+    - operation:
+        ports: ["9080"]  # Реальный порт
+
+---
+# Для reviews service
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: reviews-allow
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: reviews
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/bookinfo/sa/bookinfo-reviews"]  # Реальный SA
+    to:
+    - operation:
+        ports: ["9080"]  # Реальный порт
+
+---
+# Для ingress gateway
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: gateway-allow
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      istio: ingressgateway
+  rules:
+  - to:
+    - operation:
+        ports: ["80"]  # Порт из Gateway
+        hosts: ["*"]  # Или конкретный хост, если известен

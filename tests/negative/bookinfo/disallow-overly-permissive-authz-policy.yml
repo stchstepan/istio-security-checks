@@ -1,0 +1,42 @@
+---
+# 1. Нарушение: wildcard principals
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-wildcard-principals
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        principals: ["*"]
+
+---
+# 2. Нарушение: wildcard methods
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-wildcard-methods
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: productpage
+  rules:
+  - to:
+    - operation:
+        methods: ["*"]
+
+---
+# 3. Нарушение: нет селектора
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-no-selector
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  rules:
+  - {}

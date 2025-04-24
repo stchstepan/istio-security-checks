@@ -1,0 +1,27 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: secure-productpage-policy
+  namespace: bookinfo
+spec:
+  # 1. Имеет явный селектор (не нарушает check-empty-selector)
+  selector:
+    matchLabels:
+      app: productpage
+  
+  # 2. Использует ALLOW с явными ограничениями
+  action: ALLOW
+  
+  # 3. Четко определенные правила без wildcard
+  rules:
+  - from:
+    - source:
+        # Явные principals (не нарушает check-wildcard-principals)
+        principals: ["cluster.local/ns/bookinfo/sa/bookinfo-productpage"]
+    
+    to:
+    - operation:
+        # Конкретные HTTP методы (не нарушает check-wildcard-methods)
+        methods: ["GET", "HEAD"]
+        paths: ["/productpage", "/static/*"]
+        ports: ["9080"]  # Явное указание порта

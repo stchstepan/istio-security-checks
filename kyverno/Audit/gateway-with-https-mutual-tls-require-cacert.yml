@@ -1,0 +1,51 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/gateway/insecure_tls.go#L71-L80
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: gateway-with-https-mutual-tls-require-cacert
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: Gateway
+    policies.kyverno.io/description: >-
+      This policy ensures that Istio Gateway resources configured with 
+      TLS mode set to MUTUAL or OPTIONAL_MUTUAL include the caCertificates field. 
+      This is necessary for validating client certificates during mutual TLS handshakes, 
+      ensuring secure communication.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # Проверка: MUTUAL или OPTIONAL_MUTUAL TLS без указания caCertificates
+  # k8s gateway api - неактуально, так как CRD и так выдает ошибку
+  # Istio
+    - name: require-cacert-for-istio-gateway-mutual-tls
+      match:
+        any:
+        - resources:
+            kinds:
+              - Gateway
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+      validate:
+        message: "TLS in MUTUAL or OPTIONAL_MUTUAL mode must have caCertificates set"
+        foreach:
+        - list: "request.object.spec.servers[]"
+          preconditions:
+            all:
+            - key: "{{ element.port.protocol }}"
+              operator: Equals
+              value: "HTTPS"
+            any:
+            - key: "{{ element.tls.mode || '' }}"
+              operator: Equals
+              value: "MUTUAL"
+            - key: "{{ element.tls.mode || '' }}"
+              operator: Equals
+              value: "OPTIONAL_MUTUAL"
+          pattern:
+            tls:
+              caCertificates: "?*"

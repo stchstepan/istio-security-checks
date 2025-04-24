@@ -1,0 +1,97 @@
+---
+# 1. Нарушение: notPrincipals для productpage
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-productpage-not-principals
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: productpage
+  rules:
+  - from:
+    - source:
+        notPrincipals: ["cluster.local/ns/bookinfo/sa/bookinfo-reviews"]  # Запрещаем доступ от reviews SA
+    to:
+    - operation:
+        methods: ["GET"]
+        paths: ["/productpage"]  # Реальный путь из HTTPRoute
+
+---
+# 2. Нарушение: notNamespaces для details
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-details-not-namespaces
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: details
+  rules:
+  - from:
+    - source:
+        notNamespaces: ["kube-system"]  # Запрещаем доступ из kube-system
+    to:
+    - operation:
+        ports: ["9080"]  # Реальный порт из Service
+
+---
+# 3. Нарушение: notMethods для ratings
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-ratings-not-methods
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: ratings
+  rules:
+  - to:
+    - operation:
+        notMethods: ["DELETE"]  # Запрещаем только DELETE
+        ports: ["9080"]  # Реальный порт
+
+---
+# 4. Нарушение: комбинированные notIpBlocks и notPaths для reviews
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-reviews-multi-negative
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: reviews
+  rules:
+  - from:
+    - source:
+        notIpBlocks: ["10.0.0.0/8"]  # Запрещаем внутренние IP
+    to:
+    - operation:
+        notPaths: ["/healthz"]  # Запрещаем доступ к /healthz
+        ports: ["9080"]
+
+---
+# 5. Нарушение: notPorts для gateway
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-gateway-not-ports
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      istio: ingressgateway
+  rules:
+  - to:
+    - operation:
+        notPorts: ["8443"]  # Запрещаем порт 8443
+        hosts: ["*"]  # Все хосты

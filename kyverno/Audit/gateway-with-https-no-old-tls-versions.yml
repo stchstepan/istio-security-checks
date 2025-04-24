@@ -1,0 +1,47 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/gateway/insecure_tls.go#L71-L80
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: gateway-with-https-no-old-tls-versions
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: Gateway
+    policies.kyverno.io/description: >-
+      This policy ensures that Istio Gateway resources do not use deprecated 
+      TLS versions (TLSv1_0 and TLSv1_1) by validating the minProtocolVersion 
+      field in the TLS configuration. It helps maintain strong security standards by 
+      enforcing the use of modern TLS protocols.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # Проверка: Запрет на использование устаревших TLS-версий (1.0 и 1.1)
+  # k8s gateway api - не нашел универсального обозначения, как это сделать
+  # Istio
+    - name: disallow-istio-gateway-old-tls-versions
+      match:
+        any:
+        - resources:
+            kinds:
+              - Gateway
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+      validate:
+        message: "TLS versions TLSV1_0 and TLSV1_1 are not allowed"
+        foreach:
+        - list: "request.object.spec.servers[]"
+          preconditions:
+            all:
+            - key: "{{ element.port.protocol }}"
+              operator: Equals
+              value: "HTTPS"
+          deny:
+            conditions:
+              all:
+              - key: "{{ request.object.spec.servers[].tls.minProtocolVersion }}"
+                operator: AnyIn
+                value: ["TLSV1_0", "TLSV1_1"]

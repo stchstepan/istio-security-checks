@@ -1,0 +1,55 @@
+# 1
+# Есть STRICT в istio-system
+# Нет STRICT в bookinfo
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: test1
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT 
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: test2
+  namespace: bookinfo
+spec:
+  mtls:
+    mode: DISABLE 
+
+# 2
+# Нет PeerAuthentication в istio-system
+# Есть STRICT в bookinfo
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: test2
+  namespace: bookinfo
+spec:
+  mtls:
+    mode: STRICT 
+
+# 3
+# Везде есть STRICT
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: test1
+  namespace: istio-system
+spec:
+  mtls:
+    mode: STRICT 
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: test2
+  namespace: bookinfo
+spec:
+  mtls:
+    mode: STRICT 

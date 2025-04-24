@@ -1,0 +1,59 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/gateway/broad_hosts.go
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: gateway-disallow-wildcard-hosts 
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: Gateway
+    policies.kyverno.io/description: >-
+      Enforces explicit host definitions in Gateway configurations by disallowing 
+      wildcard characters in hostnames, thereby enhancing routing precision and 
+      security.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: disallow-k8s-gateway-wildcard-hosts
+      match:
+        any:
+        - resources:
+            kinds:
+              - Gateway
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+      validate:
+        message: "Wildcards are not permitted as hosts."
+        foreach:
+        - list: "request.object.spec.listeners[].hostname"
+          deny:
+            conditions:
+              any:
+              - key: "{{ contains(element, '*') }}"
+                operator: Equals
+                value: true
+    - name: disallow-istio-gateway-wildcard-hosts
+      match:
+        any:
+        - resources:
+            kinds:
+              - Gateway
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+      validate:
+        message: "Wildcards are not permitted as hosts."
+        foreach:
+        - list: "request.object.spec.servers[].hosts[]"
+          deny:
+            conditions:
+              any:
+              - key: "{{ contains(element, '*') }}"
+                operator: Equals
+                value: true

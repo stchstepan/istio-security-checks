@@ -1,0 +1,18 @@
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-specific-user
+  namespace: bookinfo
+spec:
+  selector:
+    matchLabels:
+      app: productpage
+  action: DENY
+  rules:
+  - from:
+    - source:
+        principals: ["cluster.local/ns/bookinfo/sa/bookinfo-reviews"]
+    to:
+    - operation:
+        paths: ["/productpage"]
+        methods: ["GET"]

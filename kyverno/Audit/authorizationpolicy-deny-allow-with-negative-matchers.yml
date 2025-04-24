@@ -1,0 +1,70 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/authz/allow_with_negative.go
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: authorizationpolicy-deny-allow-with-negative-matchers
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: AuthorizationPolicy
+    policies.kyverno.io/description: >-
+      AuthorizationPolicy with action ALLOW must not contain negative matchers 
+      such as notPrincipals, notNamespaces, notIpBlocks, etc., as this can violate
+      zero-trust assumptions and allow unintended access.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # https://istio.io/latest/docs/reference/config/security/authorization-policy/
+    - name: no-negative-matchers-in-allow
+      match:
+        any:
+        - resources:
+            kinds:
+            - AuthorizationPolicy
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+        - key: "{{ request.object.spec.action || 'ALLOW' }}"
+          operator: Equals
+          value: "ALLOW"
+      validate:
+        message: "AuthorizationPolicy with action ALLOW must not use negative matchers like notPrincipals, notNamespaces, etc."
+        foreach:
+        - list: "request.object.spec.rules[]"
+          deny:
+            conditions:
+              any:
+              - key: "{{ element.from[].source.notPrincipals || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.from[].source.notNamespaces || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.from[].source.notIpBlocks || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.from[].source.notRemoteIpBlocks || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.from[].source.notRequestPrincipals || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.from[].source.notServiceAccounts || '' }}"
+                operator: NotEquals
+                value: ""
+
+              - key: "{{ element.to[].operation.notHosts || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.to[].operation.notMethods || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.to[].operation.notPaths || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ element.to[].operation.notPorts || '' }}"
+                operator: NotEquals
+                value: ""

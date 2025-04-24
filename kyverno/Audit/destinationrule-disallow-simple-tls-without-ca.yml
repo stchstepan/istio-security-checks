@@ -1,0 +1,62 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/destinationrule/cacerts.go
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: destinationrule-disallow-simple-tls-without-ca
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: Gateway
+    policies.kyverno.io/description: >-
+      Disallow DestinationRules that set TLS mode to SIMPLE without specifying 
+      caCertificates.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # https://istio.io/latest/docs/reference/config/networking/destination-rule/
+    - name: require-ca-in-simple-tls-traffic-policy
+      match:
+        any:
+        - resources:
+            kinds:
+              - DestinationRule
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+        - key: "{{ request.object.spec.trafficPolicy.tls.mode || '' }}"
+          operator: Equals
+          value: "SIMPLE"
+      validate:
+        message: "caCertificates must be specified when TLS mode is SIMPLE"
+        anyPattern:
+          - spec:
+              trafficPolicy:
+                tls:
+                  mode: SIMPLE
+                  caCertificates: "?*"
+    - name: require-ca-in-simple-tls-port-level-settings
+      match:
+        any:
+        - resources:
+            kinds:
+              - DestinationRule
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+      validate:
+        message: "caCertificates must be specified when TLS mode is SIMPLE in portLevelSettings"
+        foreach:
+        - list: "request.object.spec.trafficPolicy.portLevelSettings[]"
+          preconditions:
+            all:
+            - key: "{{ element.tls.mode }}"
+              operator: Equals
+              value: "SIMPLE"
+          anyPattern:
+            - tls:
+                caCertificates: "?*"

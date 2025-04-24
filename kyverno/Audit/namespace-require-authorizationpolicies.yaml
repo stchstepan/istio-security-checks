@@ -1,0 +1,36 @@
+# https://kyverno.io/policies/istio/require-authorizationpolicy/require-authorizationpolicy/
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: namespace-require-authorizationpolicies
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: AuthorizationPolicy
+    policies.kyverno.io/description: >-
+      An AuthorizationPolicy is used to provide access controls for traffic in the mesh and
+      can be defined at multiple levels. For the Namespace level, all Namespaces should have
+      at least one AuthorizationPolicy.  
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  - name: check-authz-pol
+    match:
+      any:
+      - resources:
+          kinds:
+          - Namespace
+    context:
+    - name: allauthorizationpolicies
+      apiCall:
+        urlPath: "/apis/security.istio.io/v1beta1/authorizationpolicies"
+        jmesPath: "items[].metadata.namespace"
+    validate:
+      message: "All Namespaces must have an AuthorizationPolicy."
+      deny:
+        conditions:
+          all:
+          - key: "{{request.object.metadata.name}}"
+            operator: AnyNotIn
+            value: "{{allauthorizationpolicies}}"

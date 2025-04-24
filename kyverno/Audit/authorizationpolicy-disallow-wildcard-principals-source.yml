@@ -1,0 +1,82 @@
+# https://github.com/ethanolivertroy/snowcat/blob/main/auditors/authz/overly_permissive.go
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: authorizationpolicy-disallow-wildcard-principals-source
+  annotations:
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/subject: AuthorizationPolicy
+    policies.kyverno.io/description: >-
+      This policy audits AuthorizationPolicy resources with ALLOW action
+      where the 'from.source.principals' field contains a wildcard ('*'),
+      and no other source constraints
+      are defined. This can unintentionally allow unrestricted access.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+  # https://istio.io/latest/docs/reference/config/security/authorization-policy/
+    - name: wildcard-principals-without-conditions
+      match:
+        any:
+        - resources:
+            kinds:
+            - AuthorizationPolicy
+      preconditions:
+        all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
+        - key: "{{ request.object.spec.action || 'ALLOW' }}"
+          operator: Equals
+          value: "ALLOW"
+        any:
+        - key: "{{ request.object.spec.selector || '' }}"
+          operator: Equals
+          value: ""
+        - key: "{{ request.object.spec.selector.matchLabels || '' }}"
+          operator: Equals
+          value: ""
+      validate:
+        message: "'*' in spec.rules[].from[].source.principals is not allowed without additional constraints in ALLOW policies"
+        foreach:
+          - list: "request.object.spec.rules[].from[]"
+            preconditions:
+              all:
+              - key: "{{ element.source.principals || '' }}"
+                operator: NotEquals
+                value: ""
+              - key: "{{ contains(element.source.principals, '*') }}"
+                operator: Equals
+                value: true
+            deny:
+              conditions:
+                any:
+                - key: "{{ element.source.requestPrincipals || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.source.namespaces || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.source.ipBlocks || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.source.remoteIpBlocks || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.source.notPrincipals || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.source.notRequestPrincipals || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.source.notNamespaces || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.source.notIpBlocks || '' }}"
+                  operator: Equals
+                  value: ""
+                - key: "{{ element.source.notRemoteIpBlocks || '' }}"
+                  operator: Equals
+                  value: ""

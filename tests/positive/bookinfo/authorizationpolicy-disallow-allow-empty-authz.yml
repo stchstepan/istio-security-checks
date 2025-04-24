@@ -1,0 +1,44 @@
+# skip
+
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-details-not-namespaces
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  selector:
+    matchLabels:
+      app: details
+  rules:
+  - from:
+    - source:
+        notNamespaces: ["kube-system"]  # Запрещаем доступ из kube-system
+    to:
+    - operation:
+        ports: ["9080"]  # Реальный порт из Service
+    when:
+    - key: request.auth.claims[iss]
+      values: ["https://accounts.google.com"]
+
+---
+
+# pass
+
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: bad-details-not-namespaces
+  namespace: bookinfo
+spec:
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        notNamespaces: ["kube-system"]  # Запрещаем доступ из kube-system
+    to:
+    - operation:
+        ports: ["9080"]  # Реальный порт из Service
+    when:
+    - key: request.auth.claims[iss]
+      values: ["https://accounts.google.com"]

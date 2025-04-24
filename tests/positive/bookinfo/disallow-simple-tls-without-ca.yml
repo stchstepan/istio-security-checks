@@ -1,0 +1,26 @@
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: bookinfo-correct-tls
+  namespace: bookinfo
+spec:
+  host: productpage.bookinfo.svc.cluster.local
+  trafficPolicy:
+    tls:
+      mode: SIMPLE
+      # caCertificates: /etc/istio/certs/root-cert.pem  # Указан корректный CA сертификат
+    portLevelSettings:
+    - port:
+        number: 9080
+      loadBalancer:
+        simple: LEAST_REQUEST
+      tls:
+        mode: SIMPLE
+        # caCertificates: /etc/istio/certs/root-cert.pem  # CA сертификат указан и для порта
+    - port:
+        number: 9081
+      loadBalancer:
+        simple: LEAST_REQUEST
+      tls:
+        mode: SIMPLE
+        caCertificates: /etc/istio/certs/root-cert.pem  # CA сертификат указан и для порта
