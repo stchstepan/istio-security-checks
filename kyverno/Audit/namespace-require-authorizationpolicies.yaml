@@ -31,6 +31,6 @@ spec:
       deny:
         conditions:
           all:
-          - key: "{{request.object.metadata.name}}"
+          - key: "{{ request.object.metadata.name }}"
             operator: AnyNotIn
-            value: "{{allauthorizationpolicies}}"
+            value: "{{ allauthorizationpolicies }}"

@@ -23,6 +23,9 @@ spec:
               - security.istio.io/v1beta1/AuthorizationPolicy
       preconditions:
         all:
+        - key: "{{ request.operation || 'BACKGROUND' }}"
+          operator: AnyIn
+          value: ["CREATE", "UPDATE"]
         - key: "{{ request.object.spec.action || 'ALLOW' }}"
           operator: Equals
           value: "DENY"

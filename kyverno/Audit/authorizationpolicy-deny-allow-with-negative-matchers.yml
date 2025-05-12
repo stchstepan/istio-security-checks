@@ -37,6 +37,7 @@ spec:
           deny:
             conditions:
               any:
+              # FROM -> source
               - key: "{{ element.from[].source.notPrincipals || '' }}"
                 operator: NotEquals
                 value: ""
@@ -55,7 +56,7 @@ spec:
               - key: "{{ element.from[].source.notServiceAccounts || '' }}"
                 operator: NotEquals
                 value: ""
-
+              # TO -> operation
               - key: "{{ element.to[].operation.notHosts || '' }}"
                 operator: NotEquals
                 value: ""
